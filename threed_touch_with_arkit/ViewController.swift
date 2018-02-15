@@ -17,6 +17,11 @@ class ViewController: UIViewController, ARSCNViewDelegate {
   private var is3DTouchAvailable: Bool! = false
   private var touchStrengthLabel: UILabel?
   
+  private var hasAnyPlanesBeenDetected: Bool! = false
+  
+  private var detectedPlaneIdentifier: UUID?
+  private var cubeNode: SCNNode?
+  
   var viewMaxWidth: CGFloat! {
     return self.view.bounds.width
   }
@@ -33,28 +38,16 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     }
     self.sceneView.delegate = self
     self.sceneView.showsStatistics = false
-    
+    self.sceneView.autoenablesDefaultLighting = true
     self.sceneView.debugOptions = [ARSCNDebugOptions.showFeaturePoints]
     let scene = SCNScene()
     self.sceneView.scene = scene
   }
-  
-  override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-    self.makeTouchStrengthAppear(touches: touches)
-  }
-  
-  override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-    self.makeTouchStrengthAppear(touches: touches)
-  }
-  
-  override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-    self.makeTouchStrengthDisappear()
-  }
-  
+
   override func viewWillAppear(_ animated: Bool) {
     super.viewWillAppear(animated)
     let configuration = ARWorldTrackingConfiguration()
-    
+    configuration.planeDetection = .horizontal
     sceneView.session.run(configuration)
   }
   
@@ -70,6 +63,18 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     // Release any cached data, images, etc that aren't in use.
   }
   
+  override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+    self.makeTouchStrengthAppear(touches: touches)
+  }
+  
+  override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+    self.makeTouchStrengthAppear(touches: touches)
+  }
+  
+  override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+    self.makeTouchStrengthDisappear()
+  }
+  
   // MARK: - ARSCNViewDelegate
   
   /*
@@ -80,6 +85,33 @@ class ViewController: UIViewController, ARSCNViewDelegate {
    return node
    }
    */
+  
+  func renderer(_ renderer: SCNSceneRenderer,
+                didAdd node: SCNNode, for anchor: ARAnchor) {
+    if let planeAnchor = anchor as? ARPlaneAnchor {
+      if self.hasAnyPlanesBeenDetected {
+        return
+      }
+      self.detectedPlaneIdentifier = anchor.identifier
+      let cubeGeo =
+        SCNBox(width: 0.1, height: 0.1, length: 0.1, chamferRadius: 0.0)
+      cubeGeo.firstMaterial?.diffuse.contents = UIColor.cyan
+      self.cubeNode = SCNNode(geometry: cubeGeo)
+      self.sceneView.scene.rootNode.addChildNode(self.cubeNode!)
+      self.cubeNode?.name = "cube"
+      self.cubeNode?.opacity = 1.0
+      self.cubeNode?.simdTransform = planeAnchor.transform
+      self.hasAnyPlanesBeenDetected = true
+    }
+  }
+  
+  func renderer(_ renderer: SCNSceneRenderer, didUpdate node: SCNNode, for anchor: ARAnchor) {
+    if let planeAnchor = anchor as? ARPlaneAnchor {
+      if planeAnchor.identifier == self.detectedPlaneIdentifier {
+        self.cubeNode?.simdTransform = planeAnchor.transform
+      }
+    }
+  }
   
   func session(_ session: ARSession, didFailWithError error: Error) {
     // Present an error message to the user
@@ -125,6 +157,10 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     UIView.animate(withDuration: 0.2, animations: {() -> Void  in
       label.alpha = 1.0
     })
+    guard let geo = self.cubeNode?.geometry as? SCNBox else {
+      return
+    }
+    geo.chamferRadius = CGFloat(0.05 * strengthRatio)
   }
   
   func makeTouchStrengthDisappear() {
@@ -135,7 +171,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
       return
     }
     UIView.animate(
-      withDuration: 0.2,
+      withDuration: 0.4,
       animations: {() -> Void in
         label.alpha = 0.0
       },
