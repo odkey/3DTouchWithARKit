@@ -17,7 +17,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
   private var is3DTouchAvailable: Bool! = false
   private var touchStrengthLabel: UILabel?
   
-  private var hasAnyPlanesBeenDetected: Bool! = false
+  private var hasAnyPlaneBeenDetected: Bool! = false
   
   private var detectedPlaneIdentifier: UUID?
   private var cubeNode: SCNNode?
@@ -89,7 +89,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
   func renderer(_ renderer: SCNSceneRenderer,
                 didAdd node: SCNNode, for anchor: ARAnchor) {
     if let planeAnchor = anchor as? ARPlaneAnchor {
-      if self.hasAnyPlanesBeenDetected {
+      if self.hasAnyPlaneBeenDetected {
         return
       }
       self.detectedPlaneIdentifier = anchor.identifier
@@ -101,7 +101,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
       self.cubeNode?.name = "cube"
       self.cubeNode?.opacity = 1.0
       self.cubeNode?.simdTransform = planeAnchor.transform
-      self.hasAnyPlanesBeenDetected = true
+      self.hasAnyPlaneBeenDetected = true
     }
   }
   
